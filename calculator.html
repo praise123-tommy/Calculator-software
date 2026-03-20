@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omega Scientific v5 | Ultimate Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; color: white; font-family: 'Consolas', monospace; }
+        #bgCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+
+        .calc-container {
+            background: rgba(0, 5, 15, 0.95);
+            backdrop-filter: blur(25px);
+            border: 2px solid #00f2ff;
+            box-shadow: 0 0 50px rgba(0, 242, 255, 0.2);
+        }
+
+        .display-screen {
+            background: linear-gradient(180deg, rgba(0,20,40,1) 0%, rgba(0,0,0,1) 100%);
+            border-bottom: 2px solid #00f2ff;
+        }
+
+        .calc-btn {
+            @apply flex items-center justify-center p-3 rounded-lg font-bold transition-all duration-150 active:scale-90 text-white select-none cursor-pointer border border-transparent text-xs;
+        }
+
+        .btn-num { @apply bg-zinc-900 border-zinc-800 hover:border-blue-400; }
+        .btn-op { @apply bg-blue-700 hover:bg-blue-500 shadow-md; }
+        .btn-func { @apply bg-slate-900 border-blue-900 text-cyan-400 hover:bg-black; }
+        .btn-ac { @apply bg-red-900/80 hover:bg-red-600; }
+        .btn-eq { @apply bg-white !text-black hover:bg-cyan-100 font-black; }
+        
+        #sidebar {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(0, 0, 0, 0.98);
+            border-left: 2px solid #00f2ff;
+        }
+        
+        .copy-toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #00f2ff; color: black; padding: 10px 20px; border-radius: 5px;
+            display: none; z-index: 100; font-weight: bold;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-2">
+
+    <div id="toast" class="copy-toast">RESULT COPIED!</div>
+    <canvas id="bgCanvas"></canvas>
+
+    <div class="relative flex flex-col md:flex-row gap-4 items-stretch">
+        
+        <div class="w-full max-w-lg calc-container rounded-[2rem] overflow-hidden z-10 border-2">
+            <div class="p-2 bg-black/50 flex justify-between items-center px-6">
+                <span class="text-[10px] text-blue-400 font-bold tracking-tighter italic">V5_STATION_READY</span>
+                <canvas id="graphCanvas" class="w-24 h-8"></canvas>
+            </div>
+
+            <div class="display-screen p-6 text-right relative group">
+                <button onclick="copyDisplay()" class="absolute left-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-900/50 p-1 rounded text-[10px]">📋 COPY</button>
+                <div id="history-label" class="text-blue-500 text-[10px] h-4 tracking-widest uppercase truncate">0_</div>
+                <div id="main-display" class="text-4xl md:text-5xl font-bold truncate text-white py-2">0</div>
+            </div>
+
+            <div class="p-4 grid grid-cols-5 gap-2">
+                <button onclick="clearAll()" class="calc-btn btn-ac">AC</button>
+                <button onclick="backspace()" class="calc-btn btn-func">⌫</button>
+                <button onclick="append('(')" class="calc-btn btn-func text-base">(</button>
+                <button onclick="append(')')" class="calc-btn btn-func text-base">)</button>
+                <button onclick="append('!')" class="calc-btn btn-func">n!</button>
+
+                <button onclick="append('sin(')" class="calc-btn btn-func">SIN</button>
+                <button onclick="append('cos(')" class="calc-btn btn-func">COS</button>
+                <button onclick="append('log(')" class="calc-btn btn-func">LOG</button>
+                <button onclick="append('e')" class="calc-btn btn-func font-serif italic text-base">e</button>
+                <button onclick="append('pi')" class="calc-btn btn-func text-base">π</button>
+
+                <button onclick="append('sqrt(')" class="calc-btn btn-func">√</button>
+                <button onclick="append('^')" class="calc-btn btn-func">xʸ</button>
+                <button onclick="append('i')" class="calc-btn btn-func italic text-base">i</button>
+                <button onclick="append('%')" class="calc-btn btn-func">%</button>
+                <button onclick="append('/')" class="calc-btn btn-op text-base">÷</button>
+
+                <button onclick="append('7')" class="calc-btn btn-num text-base">7</button>
+                <button onclick="append('8')" class="calc-btn btn-num text-base">8</button>
+                <button onclick="append('9')" class="calc-btn btn-num text-base">9</button>
+                <button onclick="append('mean(')" class="calc-btn btn-func">MEAN</button>
+                <button onclick="append('*')" class="calc-btn btn-op text-base">×</button>
+
+                <button onclick="append('4')" class="calc-btn btn-num text-base">4</button>
+                <button onclick="append('5')" class="calc-btn btn-num text-base">5</button>
+                <button onclick="append('6')" class="calc-btn btn-num text-base">6</button>
+                <button onclick="append('permutations(')" class="calc-btn btn-func text-[9px]">nPr</button>
+                <button onclick="append('-')" class="calc-btn btn-op text-base">−</button>
+
+                <button onclick="append('1')" class="calc-btn btn-num text-base">1</button>
+                <button onclick="append('2')" class="calc-btn btn-num text-base">2</button>
+                <button onclick="append('3')" class="calc-btn btn-num text-base">3</button>
+                <button onclick="useAns()" class="calc-btn btn-func bg-blue-900/30 text-blue-200">ANS</button>
+                <button onclick="append('+')" class="calc-btn btn-op text-base">+</button>
+
+                <button onclick="append('0')" class="calc-btn btn-num col-span-1 text-base">0</button>
+                <button onclick="append('.')" class="calc-btn btn-num text-base">.</button>
+                <button onclick="append(',')" class="calc-btn btn-num text-base">,</button>
+                <button onclick="toggleSidebar()" class="calc-btn btn-func">LIB</button>
+                <button onclick="solve()" class="calc-btn btn-eq col-span-1 text-base">=</button>
+            </div>
+        </div>
+
+        <div id="sidebar" class="fixed top-0 right-0 w-72 h-full z-20 translate-x-full p-6 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="font-bold text-blue-400">MATH_LOG</h2>
+                <button onclick="toggleSidebar()" class="text-white">✕</button>
+            </div>
+            <div id="history-list" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <script>
+        const display = document.getElementById('main-display');
+        const historyLabel = document.getElementById('history-label');
+        const historyList = document.getElementById('history-list');
+        const sidebar = document.getElementById('sidebar');
+        let currentInput = "";
+        let lastAns = "0";
+        let logs = [];
+
+        function append(value) {
+            if (currentInput === "0" && !isNaN(value)) currentInput = value;
+            else currentInput += value;
+            updateUI();
+        }
+
+        function useAns() {
+            currentInput += lastAns;
+            updateUI();
+        }
+
+        function backspace() {
+            currentInput = currentInput.slice(0, -1);
+            updateUI();
+        }
+
+        function clearAll() {
+            currentInput = "";
+            historyLabel.innerText = "READY_";
+            display.innerText = "0";
+        }
+
+        function updateUI() {
+            display.innerText = currentInput || "0";
+        }
+
+        function solve() {
+            try {
+                const result = math.evaluate(currentInput);
+                const formatted = math.format(result, { precision: 10 });
+                lastAns = formatted.toString();
+                logs.unshift({ q: currentInput, a: formatted });
+                updateHistoryUI();
+                historyLabel.innerText = currentInput + " =";
+                currentInput = formatted.toString();
+                display.innerText = currentInput;
+            } catch (err) {
+                display.innerText = "SYNTAX_ERR";
+                setTimeout(clearAll, 1000);
+            }
+        }
+
+        function copyDisplay() {
+            navigator.clipboard.writeText(display.innerText);
+            const t = document.getElementById('toast');
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 1500);
+        }
+
+        function toggleSidebar() { sidebar.classList.toggle('translate-x-full'); }
+
+        function updateHistoryUI() {
+            historyList.innerHTML = logs.slice(0, 10).map(l => `
+                <div class="p-3 bg-zinc-900 rounded border-l-4 border-blue-600 hover:bg-zinc-800 cursor-pointer" onclick="recall('${l.a}')">
+                    <div class="text-[10px] opacity-40 uppercase tracking-tighter">${l.q}</div>
+                    <div class="font-bold text-white">${l.a}</div>
+                </div>
+            `).join('');
+        }
+
+        function recall(val) { currentInput = val; updateUI(); toggleSidebar(); }
+
+        // --- ANIMATIONS ---
+        const gCanvas = document.getElementById('graphCanvas');
+        const gCtx = gCanvas.getContext('2d');
+        function drawG() {
+            gCtx.clearRect(0, 0, gCanvas.width, gCanvas.height);
+            gCtx.strokeStyle = "#00f2ff";
+            gCtx.beginPath();
+            for(let i=0; i<gCanvas.width; i+=5) {
+                let y = (gCanvas.height/2) + Math.sin(i * 0.2 + Date.now()*0.01) * 5;
+                gCtx.lineTo(i, y);
+            }
+            gCtx.stroke();
+            requestAnimationFrame(drawG);
+        }
+        drawG();
+
+        const bg = document.getElementById('bgCanvas');
+        const bctx = bg.getContext('2d');
+        function res() { bg.width = window.innerWidth; bg.height = window.innerHeight; }
+        window.onresize = res; res();
+        function drawBg() {
+            bctx.fillStyle = "rgba(0,0,0,0.1)";
+            bctx.fillRect(0,0,bg.width,bg.height);
+            bctx.fillStyle = "#004466";
+            for(let i=0; i<30; i++) bctx.fillRect(Math.random()*bg.width, Math.random()*bg.height, 1.5, 1.5);
+            requestAnimationFrame(drawBg);
+        }
+        drawBg();
+    </script>
+</body>
+</html>
